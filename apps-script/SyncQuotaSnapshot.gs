@@ -12,6 +12,47 @@ var DEST_SPREADSHEET_ID = '1W_1WQ3Zinj_JdtKFmVZOP_Mfc69OZXjAwPJTC_Z4RBQ';
 var DEST_SHEET_GID = 0; // the tab shown at gid=0 in the destination link
 var LAST_FILE_PROP_KEY = 'LAST_SYNCED_FILE_NAME';
 
+// ---- Custom menu (manual "button" in the spreadsheet) -----------------
+
+/**
+ * Simple trigger: adds a "Quota Sync" menu to the spreadsheet UI on open,
+ * with items to run the sync manually or (re)install the 15-minute
+ * trigger, without needing to open the Apps Script editor.
+ */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('Quota Sync')
+    .addItem('Sincronizar ahora', 'runManualSync')
+    .addItem('Ejecutar configuración inicial', 'runInitialSetup')
+    .addToUi();
+}
+
+/**
+ * Menu item: forces a sync of the most recent snapshot right now,
+ * regardless of whether it was already synced.
+ */
+function runManualSync() {
+  var ui = SpreadsheetApp.getUi();
+  var latestFile = getMostRecentFileByName_(SOURCE_FOLDER_ID);
+  if (!latestFile) {
+    ui.alert('No se encontraron archivos .xlsx en la carpeta de origen.');
+    return;
+  }
+
+  syncFileToDestination_(latestFile);
+  PropertiesService.getScriptProperties().setProperty(LAST_FILE_PROP_KEY, latestFile.getName());
+  ui.alert('Sincronización manual completa: "' + latestFile.getName() + '".');
+}
+
+/**
+ * Menu item: runs the initial setup (installs the 15-minute trigger) and
+ * confirms it in a dialog. Safe to run more than once.
+ */
+function runInitialSetup() {
+  setupTrigger();
+  SpreadsheetApp.getUi().alert('Configuración inicial completa: el trigger de 15 minutos quedó instalado.');
+}
+
 // ---- Trigger entry point ----------------------------------------------
 
 /**
